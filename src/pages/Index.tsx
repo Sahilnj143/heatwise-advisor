@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { RecommendationsList } from "@/components/RecommendationsList";
 import { RationaleCard } from "@/components/RationaleCard";
 import { ConfidenceIndicator } from "@/components/ConfidenceIndicator";
-import { HeatAdvisory, mockAdvisory } from "@/lib/heatAdvisory";
+import { HeatAdvisory } from "@/lib/heatAdvisory";
+import { fetchHeatAdvisory } from "@/lib/api";
+import { toast } from "sonner";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -20,12 +22,16 @@ const Index = () => {
   const handleSubmit = async (name: string, locationType: string) => {
     setIsLoading(true);
     setLocationName(name);
-    
-    // Simulate API call - replace with actual AI call when Cloud is connected
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setAdvisory(mockAdvisory);
-    setIsLoading(false);
+
+    try {
+      const result = await fetchHeatAdvisory(name, locationType);
+      setAdvisory(result);
+    } catch (error) {
+      console.error("Failed to fetch advisory:", error);
+      toast.error("Failed to generate advisory. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleReset = () => {
@@ -56,7 +62,7 @@ const Index = () => {
             Heat Risk Advisory
           </h1>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Personalized heat safety recommendations based on your location and official guidelines.
+            AI-powered heat safety recommendations based on your location and official guidelines.
           </p>
         </motion.header>
 
@@ -82,16 +88,16 @@ const Index = () => {
                   <div>
                     <h3 className="font-medium text-foreground text-sm">Official Guidelines</h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Based on verified safety protocols
+                      Based on WHO & CDC protocols
                     </p>
                   </div>
                 </div>
                 <div className="glass-card rounded-xl p-4 flex items-start gap-3">
                   <Thermometer className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-medium text-foreground text-sm">Real-time Weather</h3>
+                    <h3 className="font-medium text-foreground text-sm">AI-Powered</h3>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Current heat index & forecasts
+                      Personalized recommendations
                     </p>
                   </div>
                 </div>
@@ -145,9 +151,9 @@ const Index = () => {
               <HeatSummaryCard summary={advisory.predictedHeatSummary} />
               <RecommendationsList recommendations={advisory.recommendations} />
               <RationaleCard rationale={advisory.rationale} />
-              <ConfidenceIndicator 
-                score={advisory.confidenceScore} 
-                usedFallback={advisory.usedFallback} 
+              <ConfidenceIndicator
+                score={advisory.confidenceScore}
+                usedFallback={advisory.usedFallback}
               />
 
               {/* Disclaimer */}
@@ -157,7 +163,7 @@ const Index = () => {
                 transition={{ delay: 0.5 }}
                 className="text-xs text-center text-muted-foreground mt-6 px-4"
               >
-                This advisory is generated using official heat safety guidelines. 
+                This advisory is AI-generated using official heat safety guidelines.
                 Always consult local authorities for emergency situations.
               </motion.p>
             </motion.div>

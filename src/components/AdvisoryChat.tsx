@@ -4,6 +4,8 @@ import { Send, Bot, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeatZone } from "@/lib/heatZones";
+import { streamChat } from "@/lib/api";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
@@ -15,24 +17,18 @@ interface AdvisoryChatProps {
   selectedZone: HeatZone | null;
 }
 
-const mockResponses: Record<string, string> = {
-  default: "I'm your Heat Advisory AI assistant. I can help you understand heat risks, provide safety recommendations, and answer questions about urban heat islands. What would you like to know?",
-  hydration: "💧 **Hydration Guidelines:**\n\nDuring high heat conditions:\n- Drink 8-12 oz of water every 20 minutes when outdoors\n- Avoid caffeine and alcohol as they increase dehydration\n- Monitor urine color - pale yellow indicates good hydration\n- Consider electrolyte drinks for prolonged outdoor exposure",
-  outdoor: "🏃 **Outdoor Activity Guidelines:**\n\nBased on current conditions:\n- **Early morning (before 10 AM):** Best time for exercise\n- **Midday (11 AM - 4 PM):** Limit exposure, seek shade\n- **Evening (after 6 PM):** Safer for moderate activities\n\nAlways take frequent breaks and listen to your body.",
-  symptoms: "🚨 **Heat Illness Warning Signs:**\n\n**Heat Exhaustion:**\n- Heavy sweating, weakness, cold/pale skin\n- Fast/weak pulse, nausea\n- **Action:** Move to cool area, hydrate, rest\n\n**Heat Stroke (Emergency):**\n- High body temp (103°F+), hot/red skin\n- Rapid pulse, confusion\n- **Action:** Call 911 immediately",
-};
-
 export function AdvisoryChat({ selectedZone }: AdvisoryChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "assistant",
-      content: mockResponses.default,
+      content: "👋 I'm your Heat Advisory AI assistant. I can help you understand heat risks, provide safety recommendations, and answer questions about urban heat islands. What would you like to know?",
     },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastZoneIdRef = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -42,9 +38,10 @@ export function AdvisoryChat({ selectedZone }: AdvisoryChatProps) {
     scrollToBottom();
   }, [messages]);
 
-  // Add zone context when selected
+  // Add zone context when selected (only if different zone)
   useEffect(() => {
-    if (selectedZone) {
+    if (selectedZone && selectedZone.id !== lastZoneIdRef.current) {
+      lastZoneIdRef.current = selectedZone.id;
       const zoneMessage: Message = {
         id: Date.now().toString(),
         role: "assistant",
@@ -68,28 +65,45 @@ export function AdvisoryChat({ selectedZone }: AdvisoryChatProps) {
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    let assistantContent = "";
 
-    const lowerInput = input.toLowerCase();
-    let response = "I can provide information about heat safety, hydration, outdoor activity timing, and heat illness symptoms. What specific topic would you like to know more about?";
-
-    if (lowerInput.includes("hydrat") || lowerInput.includes("water") || lowerInput.includes("drink")) {
-      response = mockResponses.hydration;
-    } else if (lowerInput.includes("outdoor") || lowerInput.includes("exercise") || lowerInput.includes("activity") || lowerInput.includes("time")) {
-      response = mockResponses.outdoor;
-    } else if (lowerInput.includes("symptom") || lowerInput.includes("sick") || lowerInput.includes("heat stroke") || lowerInput.includes("warning")) {
-      response = mockResponses.symptoms;
-    }
-
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: response,
+    const updateAssistant = (chunk: string) => {
+      assistantContent += chunk;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && last.id.startsWith("streaming-")) {
+          return prev.map((m, i) =>
+            i === prev.length - 1 ? { ...m, content: assistantContent } : m
+          );
+        }
+        return [
+          ...prev,
+          { id: `streaming-${Date.now()}`, role: "assistant", content: assistantContent },
+        ];
+      });
     };
 
-    setMessages((prev) => [...prev, assistantMessage]);
-    setIsLoading(false);
+    // Build conversation history for context
+    const conversationHistory = messages
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => ({ role: m.role, content: m.content }));
+
+    try {
+      await streamChat({
+        messages: [...conversationHistory, { role: "user", content: input }],
+        zoneContext: selectedZone,
+        onDelta: updateAssistant,
+        onDone: () => setIsLoading(false),
+        onError: (error) => {
+          toast.error(error.message || "Failed to get response");
+          setIsLoading(false);
+        },
+      });
+    } catch (error) {
+      console.error("Chat error:", error);
+      toast.error("Failed to connect to AI advisor");
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -100,7 +114,7 @@ export function AdvisoryChat({ selectedZone }: AdvisoryChatProps) {
         </div>
         <div>
           <h3 className="font-medium text-sm text-foreground">Heat Advisory AI</h3>
-          <p className="text-xs text-muted-foreground">Ask about heat safety</p>
+          <p className="text-xs text-muted-foreground">Powered by Lovable AI</p>
         </div>
       </div>
 
@@ -136,8 +150,8 @@ export function AdvisoryChat({ selectedZone }: AdvisoryChatProps) {
             </motion.div>
           ))}
         </AnimatePresence>
-        
-        {isLoading && (
+
+        {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
