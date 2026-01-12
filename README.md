@@ -2,7 +2,7 @@
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**URL**: (https://sahilnj143.github.io/heatwise-advisor/)
 
 ## How can I edit this code?
 
