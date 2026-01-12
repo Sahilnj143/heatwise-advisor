@@ -1,15 +1,18 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Shield, Thermometer } from "lucide-react";
+import { Sun, Shield, Thermometer, LayoutDashboard, ArrowRight } from "lucide-react";
 import { LocationInput } from "@/components/LocationInput";
 import { RiskLevelBadge } from "@/components/RiskLevelBadge";
 import { HeatSummaryCard } from "@/components/HeatSummaryCard";
+import { Button } from "@/components/ui/button";
 import { RecommendationsList } from "@/components/RecommendationsList";
 import { RationaleCard } from "@/components/RationaleCard";
 import { ConfidenceIndicator } from "@/components/ConfidenceIndicator";
 import { HeatAdvisory, mockAdvisory } from "@/lib/heatAdvisory";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [advisory, setAdvisory] = useState<HeatAdvisory | null>(null);
   const [locationName, setLocationName] = useState("");
@@ -92,6 +95,24 @@ const Index = () => {
                     </p>
                   </div>
                 </div>
+              </motion.div>
+
+              {/* Dashboard link */}
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="mt-6"
+              >
+                <Button
+                  onClick={() => navigate("/dashboard")}
+                  variant="outline"
+                  className="w-full h-12 gap-2"
+                >
+                  <LayoutDashboard className="w-5 h-5" />
+                  Open City Dashboard
+                  <ArrowRight className="w-4 h-4 ml-auto" />
+                </Button>
               </motion.div>
             </motion.div>
           ) : (
